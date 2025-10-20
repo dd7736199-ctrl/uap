@@ -1,4 +1,4 @@
--- Universal Admin Panel by wyoleuu (Mobile Edition)
+-- Universal Admin Panel by wyoleuu (Mobile Edition + Fly GUI V3 + Wallhack + Intro Screen)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -39,6 +39,35 @@ local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 gui.Name = "UniversalAdminPanel"
 gui.ResetOnSpawn = false
 
+--=== ЗАСТАВКА ===--
+local intro = Instance.new("Frame", gui)
+intro.Size = UDim2.new(1, 0, 1, 0)
+intro.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+intro.BackgroundTransparency = 0.3
+
+local introText = Instance.new("TextLabel", intro)
+introText.AnchorPoint = Vector2.new(0.5, 0.5)
+introText.Position = UDim2.new(0.5, 0, 0.5, 0)
+introText.Text = "@wyoleu Telegram Channel"
+introText.TextColor3 = Color3.new(1, 1, 1)
+introText.Font = Enum.Font.GothamBold
+introText.TextScaled = true
+introText.BackgroundTransparency = 1
+introText.TextStrokeTransparency = 0.5
+
+intro.BackgroundTransparency = 1
+introText.TextTransparency = 1
+
+TweenService:Create(intro, TweenInfo.new(1), {BackgroundTransparency = 0.3}):Play()
+TweenService:Create(introText, TweenInfo.new(1), {TextTransparency = 0}):Play()
+
+task.wait(4)
+TweenService:Create(intro, TweenInfo.new(1), {BackgroundTransparency = 1}):Play()
+TweenService:Create(introText, TweenInfo.new(1), {TextTransparency = 1}):Play()
+task.wait(1)
+intro:Destroy()
+
+--=== ОСНОВНАЯ ПАНЕЛЬ ===--
 local mainButton = Instance.new("TextButton", gui)
 mainButton.Size = UDim2.new(0, 280, 0, 50)
 mainButton.Position = UDim2.new(0, 100, 0, 150)
@@ -76,13 +105,13 @@ end
 local function togglePanel()
 	panel.Visible = not panel.Visible
 	TweenService:Create(panel, TweenInfo.new(0.3), {
-		Size = panel.Visible and UDim2.new(0, 280, 0, 400) or UDim2.new(0, 280, 0, 0)
+		Size = panel.Visible and UDim2.new(0, 280, 0, 440) or UDim2.new(0, 280, 0, 0)
 	}):Play()
 end
 
 mainButton.MouseButton1Click:Connect(togglePanel)
 
---=== ESP (Nicknames smaller) ===--
+--=== ESP (маленькие имена) ===--
 local function toggleESP()
 	espEnabled = not espEnabled
 	if espEnabled then
@@ -109,7 +138,7 @@ local function toggleESP()
 	end
 end
 
---=== WALLHACK (Outline around players) ===--
+--=== WALLHACK ===--
 local function toggleWallhack()
 	wallhackEnabled = not wallhackEnabled
 	if wallhackEnabled then
@@ -117,9 +146,9 @@ local function toggleWallhack()
 			if plr ~= player and plr.Character then
 				local highlight = Instance.new("Highlight", plr.Character)
 				highlight.Name = "WallhackOutline"
-				highlight.FillTransparency = 1 -- полностью прозрачное тело
+				highlight.FillTransparency = 1
 				highlight.OutlineTransparency = 0
-				highlight.OutlineColor = Color3.fromRGB(255, 0, 0) -- красный контур
+				highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
 				table.insert(wallhackHighlights, highlight)
 			end
 		end
@@ -226,5 +255,4 @@ newButton("Spin -", 6, function() spinSpeed = math.max(1, spinSpeed - 1) end)
 newButton("Goto", 7, openGotoWindow)
 newButton("Exit", 8, function() gui:Destroy() end)
 
-print("✅ Universal Admin Panel by wyoleuu loaded successfully (Wallhack Outline + small ESP names).")
-
+print("✅ Universal Admin Panel by wyoleu loaded successfully with intro and wallhack.")
