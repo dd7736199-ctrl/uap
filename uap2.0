@@ -1,0 +1,247 @@
+-- Universal Admin Panel by wyoleuu (Mobile Edition + Fly GUI V3 + Goto Input + Wallhack)
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
+
+--=== Переменные ===--
+local flying, noclip, spinEnabled, espEnabled, wallhackEnabled = false, false, false, false, false
+local flightSpeed, spinSpeed = 2, 2
+local spinConnection, espObjects = nil, {}
+local flyGuiActive = false
+
+--=== Вспомогательная функция для drag ===--
+local function makeDraggable(guiObject)
+	local dragging, dragStart, startPos
+	guiObject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = guiObject.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+--=== GUI ===--
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "UniversalAdminPanel"
+gui.ResetOnSpawn = false
+
+local mainButton = Instance.new("TextButton", gui)
+mainButton.Size = UDim2.new(0, 280, 0, 50)
+mainButton.Position = UDim2.new(0, 100, 0, 150)
+mainButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainButton.TextColor3 = Color3.new(1, 1, 1)
+mainButton.Font = Enum.Font.GothamBold
+mainButton.TextSize = 18
+mainButton.Text = "Universal Admin Panel by wyoleuu"
+Instance.new("UICorner", mainButton)
+makeDraggable(mainButton)
+
+local panel = Instance.new("Frame", gui)
+panel.Size = UDim2.new(0, 280, 0, 0)
+panel.Position = UDim2.new(0, 100, 0, 210)
+panel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+panel.Visible = false
+Instance.new("UICorner", panel)
+makeDraggable(panel)
+
+--=== Кнопки ===--
+local buttons = {}
+local function newButton(text, order, func)
+	local btn = Instance.new("TextButton", panel)
+	btn.Size = UDim2.new(1, -20, 0, 40)
+	btn.Position = UDim2.new(0, 10, 0, 10 + (order - 1) * 45)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 16
+	btn.Text = text
+	btn.AutoButtonColor = true
+	Instance.new("UICorner", btn)
+	btn.MouseButton1Click:Connect(func)
+	buttons[text] = btn
+	return btn
+end
+
+local function togglePanel()
+	panel.Visible = not panel.Visible
+	TweenService:Create(panel, TweenInfo.new(0.3), {Size = panel.Visible and UDim2.new(0, 280, 0, 400) or UDim2.new(0, 280, 0, 0)}):Play()
+end
+
+mainButton.MouseButton1Click:Connect(togglePanel)
+
+--=== ESP ===--
+local function toggleESP()
+	espEnabled = not espEnabled
+	if espEnabled then
+		for _, plr in pairs(Players:GetPlayers()) do
+			if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
+				local billboard = Instance.new("BillboardGui", plr.Character.Head)
+				billboard.Name = "ESP"
+				billboard.Size = UDim2.new(0, 120, 0, 25)
+				billboard.AlwaysOnTop = true
+				local nameLabel = Instance.new("TextLabel", billboard)
+				nameLabel.Text = plr.Name
+				nameLabel.Size = UDim2.new(1, 0, 1, 0)
+				nameLabel.BackgroundTransparency = 1
+				nameLabel.TextColor3 = Color3.new(1, 0, 0)
+				nameLabel.TextStrokeTransparency = 0.5
+				nameLabel.Font = Enum.Font.GothamBold
+				nameLabel.TextScaled = true
+				table.insert(espObjects, billboard)
+			end
+		end
+	else
+		for _, obj in ipairs(espObjects) do obj:Destroy() end
+		espObjects = {}
+	end
+end
+
+--=== Wallhack ===--
+local transparencyData = {}
+
+local function setTransparency(obj, val)
+	if obj:IsA("BasePart") and obj.Transparency < 0.5 then
+		transparencyData[obj] = obj.Transparency
+		obj.Transparency = val
+	end
+	for _, child in ipairs(obj:GetChildren()) do
+		setTransparency(child, val)
+	end
+end
+
+local function resetTransparency()
+	for obj, val in pairs(transparencyData) do
+		if obj and obj.Parent then
+			obj.Transparency = val
+		end
+	end
+	transparencyData = {}
+end
+
+local function toggleWallhack()
+	wallhackEnabled = not wallhackEnabled
+	if wallhackEnabled then
+		for _, obj in ipairs(Workspace:GetDescendants()) do
+			if obj:IsA("BasePart") and obj.Transparency < 0.5 then
+				transparencyData[obj] = obj.Transparency
+				obj.Transparency = 0.6
+			end
+		end
+	else
+		resetTransparency()
+	end
+end
+
+--=== Spin ===--
+local function toggleSpin()
+	spinEnabled = not spinEnabled
+	if spinEnabled then
+		spinConnection = RunService.RenderStepped:Connect(function()
+			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				player.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(spinSpeed), 0)
+			end
+		end)
+	else
+		if spinConnection then spinConnection:Disconnect() end
+	end
+end
+
+--=== Goto GUI ===--
+local function openGotoWindow()
+	local gotoFrame = Instance.new("Frame", gui)
+	gotoFrame.Size = UDim2.new(0, 260, 0, 140)
+	gotoFrame.Position = UDim2.new(0.5, -130, 0.5, -70)
+	gotoFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	gotoFrame.Active = true
+	Instance.new("UICorner", gotoFrame)
+	makeDraggable(gotoFrame)
+
+	local title = Instance.new("TextLabel", gotoFrame)
+	title.Size = UDim2.new(1, 0, 0, 30)
+	title.BackgroundTransparency = 1
+	title.Text = "Enter player nickname:"
+	title.TextColor3 = Color3.new(1, 1, 1)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 16
+
+	local input = Instance.new("TextBox", gotoFrame)
+	input.Size = UDim2.new(0.9, 0, 0, 35)
+	input.Position = UDim2.new(0.05, 0, 0, 45)
+	input.PlaceholderText = "Nickname"
+	input.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	input.TextColor3 = Color3.new(1, 1, 1)
+	input.Font = Enum.Font.Gotham
+	input.TextSize = 16
+	Instance.new("UICorner", input)
+
+	local teleportBtn = Instance.new("TextButton", gotoFrame)
+	teleportBtn.Size = UDim2.new(0.4, 0, 0, 35)
+	teleportBtn.Position = UDim2.new(0.05, 0, 0, 90)
+	teleportBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+	teleportBtn.Text = "Teleport"
+	teleportBtn.TextColor3 = Color3.new(1, 1, 1)
+	teleportBtn.Font = Enum.Font.GothamBold
+	teleportBtn.TextSize = 16
+	Instance.new("UICorner", teleportBtn)
+
+	local closeBtn = Instance.new("TextButton", gotoFrame)
+	closeBtn.Size = UDim2.new(0.4, 0, 0, 35)
+	closeBtn.Position = UDim2.new(0.55, 0, 0, 90)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(120, 50, 50)
+	closeBtn.Text = "Close"
+	closeBtn.TextColor3 = Color3.new(1, 1, 1)
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.TextSize = 16
+	Instance.new("UICorner", closeBtn)
+
+	closeBtn.MouseButton1Click:Connect(function()
+		gotoFrame:Destroy()
+	end)
+
+	teleportBtn.MouseButton1Click:Connect(function()
+		local name = input.Text
+		if name ~= "" then
+			local target = Players:FindFirstChild(name)
+			if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+				player.Character:MoveTo(target.Character.HumanoidRootPart.Position + Vector3.new(0, 3, 0))
+			end
+		end
+		gotoFrame:Destroy()
+	end)
+end
+
+--=== Кнопки панели ===--
+newButton("Fly", 1, function()
+	if not flyGuiActive then
+		loadstring(game:HttpGet("https://pastebin.com/raw/xuSMWfDu"))()
+		flyGuiActive = true
+	else
+		local gui = player.PlayerGui:FindFirstChild("main")
+		if gui then gui:Destroy() end
+		flyGuiActive = false
+	end
+end)
+
+newButton("ESP", 2, toggleESP)
+newButton("Wallhack", 3, toggleWallhack)
+newButton("Spin", 4, toggleSpin)
+newButton("Spin +", 5, function() spinSpeed += 1 end)
+newButton("Spin -", 6, function() spinSpeed = math.max(1, spinSpeed - 1) end)
+newButton("Goto", 7, openGotoWindow)
+newButton("Exit", 8, function() gui:Destroy() end)
+
+print("✅ Universal Admin Panel by wyoleuu loaded successfully (with Wallhack and small ESP names).")
